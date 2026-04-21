@@ -56,6 +56,8 @@ If you're CPU-constrained, drop `NetServerMaxTickRate` to `85`. Everything else 
 | `LanServerMaxTickRate` | 35 | match NetServerMaxTickRate | Same, for LAN games. |
 | `MaxClientRate` | 10000 | **100000** | Per-client bandwidth ceiling (bytes/sec). This caps what `NetSpeed` any connecting client can negotiate up to. **Do not leave at 10000** — see the 10001 threshold note below. |
 | `MaxInternetClientRate` | 10000 | **100000** | Same as above, applied to internet (non-LAN) connections. |
+| `KeepAliveTime` | 0.2 | 0.2 (leave default) | Seconds between heartbeat packets to an otherwise-idle connection. Keeps NAT port bindings alive, feeds ACK regularity, and pairs with `ConnectionTimeout=20.0` for dead-connection detection. **Does not affect fluidity during active play** — combat traffic runs at 50–100+ Hz, far above this floor. See the note below before adjusting. |
+| `ConnectionTimeout` | 20.0 | 20.0 | Seconds of silence before the engine drops a connection as dead. Leave alone unless you have a specific reason. |
 
 **⚠ The 10001 NetSpeed threshold**
 
@@ -64,6 +66,14 @@ UT2004's engine has a hardcoded NetSpeed tier break at exactly `10000`. Clients 
 If your server's `MaxClientRate` is set to exactly `10000`, **every client is clamped to the low-bandwidth tier** regardless of what they've configured locally, and movement will feel sluggish / stuttery even on otherwise-good connections.
 
 Set the server cap generously (`100000` is a sensible ceiling for modern connections) and let clients pick their own `NetSpeed` in UT2004.ini's `[Engine.Player]` section. Competitive players typically use values like `10001`, `20000`, or `25001` — values just above tier thresholds to ensure they land in the higher tier.
+
+**⚠ Cargo-cult warning: do not lower `KeepAliveTime` for "smoother play"**
+
+Community folklore sometimes suggests setting `KeepAliveTime=0.1` or `0.05` for a smoother feel. This is not real — the setting only fires when no other outgoing packet has gone to the client in that window, which during combat is never (actor state replicates at 50+ Hz, orders of magnitude faster than the 5 Hz heartbeat floor at the default of 0.2). Lowering it just adds heartbeat packets to already-idle connections for no gain.
+
+If you genuinely need to tune:
+- **Raise to 0.5** only if you're on very bandwidth-constrained infrastructure and want to trim idle-connection overhead. Cost: slower dead-connection detection.
+- **Lower below 0.2**: never a good reason. Skip it.
 
 ### NewNet core (WSUTComp.ini → `[WSUTComp.MutUTComp]`)
 
