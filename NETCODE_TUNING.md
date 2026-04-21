@@ -12,8 +12,8 @@ All mutator settings live in `WSUTComp.ini` under `[WSUTComp.MutUTComp]`, and al
 ; UT2004.ini  [IpDrv.TcpNetDriver]
 NetServerMaxTickRate=100
 LanServerMaxTickRate=100
-MaxClientRate=10000
-MaxInternetClientRate=10000
+MaxClientRate=100000
+MaxInternetClientRate=100000
 
 ; WSUTComp.ini  [WSUTComp.MutUTComp]
 ; --- NewNet ---
@@ -54,8 +54,16 @@ If you're CPU-constrained, drop `NetServerMaxTickRate` to `85`. Everything else 
 |---|---|---|---|
 | `NetServerMaxTickRate` | 20 | **100** (85 on weak hardware) | Server physics + replication tick rate. Above 120 the engine's float-precision timing starts to wobble on long matches. At 100 tick, PawnCollisionCopy stores 35 history samples per 350 ms window — worst-case rewind error ~8.8 UU at full dodge speed (pawn collision radius is 25 UU, so rewind is not tick-limited). |
 | `LanServerMaxTickRate` | 35 | match NetServerMaxTickRate | Same, for LAN games. |
-| `MaxClientRate` | 10000 | 10000 | Per-client bandwidth ceiling (bytes/sec). |
-| `MaxInternetClientRate` | 10000 | 10000 | Same, internet side. Raise only if players report `CurrentNetSpeed` clipping. |
+| `MaxClientRate` | 10000 | **100000** | Per-client bandwidth ceiling (bytes/sec). This caps what `NetSpeed` any connecting client can negotiate up to. **Do not leave at 10000** — see the 10001 threshold note below. |
+| `MaxInternetClientRate` | 10000 | **100000** | Same as above, applied to internet (non-LAN) connections. |
+
+**⚠ The 10001 NetSpeed threshold**
+
+UT2004's engine has a hardcoded NetSpeed tier break at exactly `10000`. Clients at `NetSpeed <= 10000` use the slower-cadence movement RPC path (smaller `MoveRepSize`, capped ServerMove rate). Clients at `NetSpeed >= 10001` unlock the higher-bandwidth path — more frequent position updates, better movement precision, smoother visible play.
+
+If your server's `MaxClientRate` is set to exactly `10000`, **every client is clamped to the low-bandwidth tier** regardless of what they've configured locally, and movement will feel sluggish / stuttery even on otherwise-good connections.
+
+Set the server cap generously (`100000` is a sensible ceiling for modern connections) and let clients pick their own `NetSpeed` in UT2004.ini's `[Engine.Player]` section. Competitive players typically use values like `10001`, `20000`, or `25001` — values just above tier thresholds to ensure they land in the higher tier.
 
 ### NewNet core (WSUTComp.ini → `[WSUTComp.MutUTComp]`)
 
@@ -147,7 +155,7 @@ ClientErrorThreshold=25.0
 ```ini
 ; UT2004.ini
 NetServerMaxTickRate=85           ; lower if you see server hitches under full load
-MaxClientRate=10000
+MaxClientRate=100000              ; NOT 10000 — that clamps clients to slow engine tier
 
 ; WSUTComp.ini
 bCoalesceMoves=True
@@ -247,7 +255,7 @@ CorrectionHalfLife=0.015          ; marginally snappier since corrections will b
 ### Bandwidth tight / clients complaining about choke
 
 - Lower `NetMoveDelta` toward the conservative `0.022` — halves ServerMove RPC rate (45 Hz instead of 91 Hz) at the cost of movement responsiveness.
-- Confirm `MaxClientRate` / `MaxInternetClientRate` aren't set absurdly high.
+- Check that `MaxClientRate` / `MaxInternetClientRate` aren't set to exactly `10000` (clamps clients into the slow engine tier — see the 10001 threshold note in the Setting Reference). `100000` is the right ceiling.
 
 ### Aim desync on rapid fire (second shot of a burst feels off)
 
