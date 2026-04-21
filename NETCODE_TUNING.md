@@ -97,6 +97,106 @@ Controls client-side prediction queueing and the server-side drift-correction th
 
 ---
 
+## Workload profiles
+
+The Quick Baseline is a reasonable middle ground. These profiles tune it for specific server shapes. Only the values that differ from baseline are listed; everything else stays at its baseline default.
+
+### Profile A — Small-team high-FPS competitive (4v4, 240–480 FPS)
+
+**Shape**: 4v4 or smaller, same-region competitive community, clients running 240–480+ FPS, typical ping 30–80 ms.
+
+```ini
+; UT2004.ini  [IpDrv.TcpNetDriver]
+NetServerMaxTickRate=100          ; 120 acceptable at 8-player load if matches are short
+
+; WSUTComp.ini  [WSUTComp.MutUTComp]
+bCoalesceMoves=True               ; MANDATORY — without it, queue overflows in under 1s at 480 FPS
+bMoveErrorAccumFix=True
+MaxPing=0.150                     ; lower to 0.100 if everyone is sub-80ms
+ClientErrorThreshold=25.0         ; try 16 after baseline testing — high-FPS clients drift less
+```
+
+**Watch for**: at 480 FPS, frame-time variance occasionally falls outside the coalesce window, spawning a new SavedMove with sub-millisecond Delta. Benign, but visible as log noise if `bDebugLogging=True`.
+
+**Don't bother with**: raising `MaxSavedMoves` past 250 — with coalesce on, queue depth stays at 1–3 entries regardless of client FPS.
+
+### Profile B — Mid-size public (5v5 to 8v8, mixed FPS/ping)
+
+**Shape**: 10–16 player pub, mixed client hardware (60 to 300 FPS), mixed ping (40–180 ms), varied skill.
+
+```ini
+; UT2004.ini
+NetServerMaxTickRate=100
+
+; WSUTComp.ini
+bCoalesceMoves=True               ; still recommended — protects the 300 FPS players
+bMoveErrorAccumFix=True
+MaxPing=0.150                     ; keep default — covers the common range
+PawnCollisionMaxRewind=0.240      ; keep default
+ClientErrorThreshold=25.0
+```
+
+**Watch for**: Some pub players will have inconsistent ping (cellular tethering, WiFi). The 5-sample median filter handles spikes, but route changes take ~2.5 s to propagate. If someone swaps networks mid-match, expect a brief window of rewind desync.
+
+**Consider**: if you have a core group of regulars with stable low ping but occasional high-ping drop-ins, lean toward `MaxPing=0.120` — it favors the regulars.
+
+### Profile C — Large public / ONS (12–16 players, CPU-sensitive)
+
+**Shape**: 12–16 players, possibly on older or shared hardware, Onslaught or large-map team modes, varied clients.
+
+```ini
+; UT2004.ini
+NetServerMaxTickRate=85           ; lower if you see server hitches under full load
+MaxClientRate=10000
+
+; WSUTComp.ini
+bCoalesceMoves=True
+bMoveErrorAccumFix=True
+NewNetUpdateFrequency=100         ; halve PRI replication load vs 200 baseline
+PingTweenTime=1.0                 ; slower ping polling, less RPC volume
+MaxPing=0.180                     ; ONS/AS maps tend to have more open sightlines; slightly more generous rewind
+PawnCollisionHistoryLength=0.40   ; match the looser rewind
+ClientErrorThreshold=40.0         ; looser drift tolerance reduces correction pressure on server
+```
+
+**Watch for**: with 16 players × 85 tick, PCC history is 16 × 34 samples in rolling memory, ~540 samples per tick doing `AddHistory` + `RemoveOutdatedHistory`. Should be fine on modern hardware, but this is where you'd notice if the box is too weak.
+
+**If CPU still struggles**: drop `NetServerMaxTickRate=60`. Rewind precision drops to ~14.7 UU worst-case — still under half the 25 UU collision radius, so competitive hit registration stays intact. Past 60 Hz the feel starts to noticeably degrade; below 60 isn't recommended.
+
+### Profile D — LAN clan / sub-60 ms everyone
+
+**Shape**: LAN events, tight same-region clan play, every player under 60 ms ping, 8 players or fewer.
+
+```ini
+; UT2004.ini
+LanServerMaxTickRate=120          ; full precision, CPU is trivial at 8 players
+NetServerMaxTickRate=120
+
+; WSUTComp.ini
+bCoalesceMoves=True
+bMoveErrorAccumFix=True
+MaxPing=0.080                     ; aggressively protect low-ping targets; anyone above 80 ms leads their shots
+PawnCollisionMaxRewind=0.120      ; matches the tight ping policy
+ClientErrorThreshold=16.0         ; tighter drift tolerance is safe with low-latency + high-FPS clients
+CorrectionHalfLife=0.015          ; marginally snappier since corrections will be small anyway
+```
+
+**Watch for**: with `MaxPing=0.080`, if anyone unexpected joins with 100+ ping they'll feel meaningful desync. Raise back to 0.150 for mixed sessions.
+
+**Don't push tick past 120**: engine float-precision issues on `Level.TimeSeconds` show up in long matches. No benefit gained above 120 for competitive-tier hit registration.
+
+### Profile-picking cheat sheet
+
+| You run... | Use profile |
+|---|---|
+| 4v4 comp, clients 240+ FPS | A |
+| 10–16 pub mixed | B |
+| 14v14 pub, struggling server | C |
+| LAN event / clan scrim | D |
+| Something in between | Start with baseline, pick deltas from the closest profile |
+
+---
+
 ## Symptom → setting guide
 
 ### Damage feels hitchy / "rubber band" after taking a hit
