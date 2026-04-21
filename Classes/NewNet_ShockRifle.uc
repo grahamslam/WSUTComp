@@ -59,29 +59,23 @@ simulated event NewNet_ClientStartFire(int Mode)
     {
         if (AltReadyToFire(Mode) && StartFire(Mode))
         {
-            if(!ReadyToFire(Mode))
-            {
-                if(T==None)
-                    foreach DynamicActors(class'TimeStamp_Pawn', T)
-                         break;
-                Stamp = T.TimeStamp;
-                NewNet_OldServerStartFire(Mode,Stamp, T.DT);
-             //   Log("This should never execute");
-                return;
-            }
-            R.Pitch = Pawn(Owner).Controller.Rotation.Pitch;
-            R.Yaw = Pawn(Owner).Controller.Rotation.Yaw;
-            STart=Pawn(Owner).Location + Pawn(Owner).EyePosition();
-
-            V.X = Start.X;
-            V.Y = Start.Y;
-            V.Z = Start.Z;
-
             if(T==None)
                 foreach DynamicActors(class'TimeStamp_Pawn', T)
                      break;
             Stamp = T.TimeStamp;
 
+            R.Pitch = Pawn(Owner).Controller.Rotation.Pitch;
+            R.Yaw = Pawn(Owner).Controller.Rotation.Yaw;
+            Start = Pawn(Owner).Location + Pawn(Owner).EyePosition();
+            V.X = Start.X;
+            V.Y = Start.Y;
+            V.Z = Start.Z;
+
+            if(!ReadyToFire(Mode))
+            {
+                NewNet_OldServerStartFire(Mode, Stamp, T.DT, R, V);
+                return;
+            }
 
             NewNet_ShockBeamFire(FireMode[mode]).DoInstantFireEffect();
 
@@ -209,17 +203,17 @@ function NewNet_ServerStartFire(byte Mode, byte ClientTimeStamp, float DT, Repli
         NewNet_ShockBeamFire(FireMode[Mode]).bBelievesHit=false;
     }
     NewNet_ShockBeamFire(FireMode[Mode]).bFirstGo=true;
+    NewNet_ShockBeamFire(FireMode[Mode]).SavedVec.X = V.X;
+    NewNet_ShockBeamFire(FireMode[Mode]).SavedVec.Y = V.Y;
+    NewNet_ShockBeamFire(FireMode[Mode]).SavedVec.Z = V.Z;
+    NewNet_ShockBeamFire(FireMode[Mode]).SavedRot.Yaw = R.Yaw;
+    NewNet_ShockBeamFire(FireMode[Mode]).SavedRot.Pitch = R.Pitch;
+    NewNet_ShockBeamFire(FireMode[Mode]).bUseReplicatedInfo=IsReasonable(NewNet_ShockBeamFire(FireMode[Mode]).SavedVec);
     if ( (FireMode[Mode].NextFireTime <= Level.TimeSeconds + FireMode[Mode].PreFireTime)
 		&& StartFire(Mode) )
     {
         FireMode[Mode].ServerStartFireTime = Level.TimeSeconds;
         FireMode[Mode].bServerDelayStartFire = false;
-        NewNet_ShockBeamFire(FireMode[Mode]).SavedVec.X = V.X;
-        NewNet_ShockBeamFire(FireMode[Mode]).SavedVec.Y = V.Y;
-        NewNet_ShockBeamFire(FireMode[Mode]).SavedVec.Z = V.Z;
-        NewNet_ShockBeamFire(FireMode[Mode]).SavedRot.Yaw = R.Yaw;
-        NewNet_ShockBeamFire(FireMode[Mode]).SavedRot.Pitch = R.Pitch;
-        NewNet_ShockBeamFire(FireMode[Mode]).bUseReplicatedInfo=IsReasonable(NewNet_ShockBeamFire(FireMode[Mode]).SavedVec);
     }
     else if ( FireMode[Mode].AllowFire() )
     {
@@ -230,13 +224,19 @@ function NewNet_ServerStartFire(byte Mode, byte ClientTimeStamp, float DT, Repli
 }
 
 
-function NewNet_OldServerStartFire(byte Mode, byte ClientTimeStamp, float dt)
+function NewNet_OldServerStartFire(byte Mode, byte ClientTimeStamp, float dt, ReplicatedRotator R, ReplicatedVector V)
 {
     if(M==None)
         foreach DynamicActors(class'MutUTComp', M)
 	        break;
     NewNet_ShockBeamFire(FireMode[Mode]).PingDT = M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT;
     NewNet_ShockBeamFire(FireMode[Mode]).bUseEnhancedNetCode = true;
+    NewNet_ShockBeamFire(FireMode[Mode]).SavedVec.X = V.X;
+    NewNet_ShockBeamFire(FireMode[Mode]).SavedVec.Y = V.Y;
+    NewNet_ShockBeamFire(FireMode[Mode]).SavedVec.Z = V.Z;
+    NewNet_ShockBeamFire(FireMode[Mode]).SavedRot.Yaw = R.Yaw;
+    NewNet_ShockBeamFire(FireMode[Mode]).SavedRot.Pitch = R.Pitch;
+    NewNet_ShockBeamFire(FireMode[Mode]).bUseReplicatedInfo=IsReasonable(NewNet_ShockBeamFire(FireMode[Mode]).SavedVec);
     ServerStartFire(mode);
 }
 

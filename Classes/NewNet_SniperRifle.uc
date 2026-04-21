@@ -172,25 +172,17 @@ function NewNet_ServerStartFire(byte Mode, byte ClientTimeStamp, float DT, Repli
     }
     NewNet_SniperFire(FireMode[Mode]).bUseEnhancedNetCode = true;
     NewNet_SniperFire(FireMode[Mode]).bFirstGo = true;
+    NewNet_SniperFire(FireMode[Mode]).SavedVec.X = V.X;
+    NewNet_SniperFire(FireMode[Mode]).SavedVec.Y = V.Y;
+    NewNet_SniperFire(FireMode[Mode]).SavedVec.Z = V.Z;
+    NewNet_SniperFire(FireMode[Mode]).SavedRot.Yaw = R.Yaw;
+    NewNet_SniperFire(FireMode[Mode]).SavedRot.Pitch = R.Pitch;
+    NewNet_SniperFire(FireMode[Mode]).bUseReplicatedInfo=IsReasonable(NewNet_SniperFire(FireMode[Mode]).SavedVec);
     if ( (FireMode[Mode].NextFireTime <= Level.TimeSeconds + FireMode[Mode].PreFireTime)
 		&& StartFire(Mode) )
     {
         FireMode[Mode].ServerStartFireTime = Level.TimeSeconds;
         FireMode[Mode].bServerDelayStartFire = false;
-        NewNet_SniperFire(FireMode[Mode]).SavedVec.X = V.X;
-        NewNet_SniperFire(FireMode[Mode]).SavedVec.Y = V.Y;
-        NewNet_SniperFire(FireMode[Mode]).SavedVec.Z = V.Z;
-        NewNet_SniperFire(FireMode[Mode]).SavedRot.Yaw = R.Yaw;
-        NewNet_SniperFire(FireMode[Mode]).SavedRot.Pitch = R.Pitch;
-        NewNet_SniperFire(FireMode[Mode]).bUseReplicatedInfo=IsReasonable(NewNet_SniperFire(FireMode[Mode]).SavedVec);
-   //     NewNet_SniperFire(FireMode[Mode]).bBelievesHit=bBelievesHit;
-   //     NewNet_SniperFire(FireMode[Mode]).bCount=true;
-   /*     NewNet_SniperFire(FireMode[Mode]).BelievedHLDelta.X = BelievedHLDelta.X;
-        NewNet_SniperFire(FireMode[Mode]).BelievedHLDelta.Y = BelievedHLDelta.Y;
-        NewNet_SniperFire(FireMode[Mode]).BelievedHLDelta.Z = BelievedHLDelta.Z;
-        NewNet_SniperFire(FireMode[Mode]).SavedVec = Pawn(Owner).Location;
-        NewNet_SniperFire(FireMode[Mode]).SavedRot = Pawn(Owner).Controller.Rotation;
-    */
     }
     else if ( FireMode[Mode].AllowFire() )
     {

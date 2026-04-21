@@ -60,7 +60,6 @@ simulated event NewNet_ClientStartFire(int Mode)
     local ReplicatedRotator R;
     local ReplicatedVector V;
     local vector Start;
-    local float stamp;
 
     if ( Pawn(Owner).Controller.IsInState('GameEnded') || Pawn(Owner).Controller.IsInState('RoundEnded') )
         return;
@@ -68,29 +67,27 @@ simulated event NewNet_ClientStartFire(int Mode)
     {
         if (AltReadyToFire(Mode) && StartFire(Mode) )
         {
-            if(!ReadyToFire(Mode))
-            {
-                if(T==None)
-                    foreach DynamicActors(class'TimeStamp_Pawn', T)
-                         break;
-                Stamp = T.TimeStamp;
-                NewNet_OldServerStartFire(Mode,Stamp, T.dt);
-                return;
-            }
             if(T==None)
                 foreach DynamicActors(class'TimeStamp_Pawn', T)
                      break;
+
+            R.Pitch = Pawn(Owner).Controller.Rotation.Pitch;
+            R.Yaw = Pawn(Owner).Controller.Rotation.Yaw;
+            Start = Pawn(Owner).Location + Pawn(Owner).EyePosition();
+            V.X = Start.X;
+            V.Y = Start.Y;
+            V.Z = Start.Z;
+
+            if(!ReadyToFire(Mode))
+            {
+                NewNet_OldServerStartFire(Mode, T.TimeStamp, T.dt, R, V);
+                return;
+            }
+
             if(NewNet_FlakAltFire(FireMode[Mode])!=None)
                 NewNet_FlakAltFire(FireMode[Mode]).DoInstantFireEffect();
             else if(NewNet_FlakFire(FireMode[Mode])!=None)
                 NewNet_FlakFire(FireMode[Mode]).DoInstantFireEffect();
-            R.Pitch = Pawn(Owner).Controller.Rotation.Pitch;
-            R.Yaw = Pawn(Owner).Controller.Rotation.Yaw;
-            STart=Pawn(Owner).Location + Pawn(Owner).EyePosition();
-
-            V.X = Start.X;
-            V.Y = Start.Y;
-            V.Z = Start.Z;
 
             NewNet_ServerStartFire(mode, T.TimeStamp, T.Dt, R, V);
         }
@@ -150,11 +147,23 @@ function NewNet_ServerStartFire(byte Mode, byte ClientTimeStamp, float dt, Repli
     {
         NewNet_FlakFire(FireMode[Mode]).PingDT = FMin(M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT, MAX_PROJECTILE_FUDGE_ALT);
         NewNet_FlakFire(FireMode[Mode]).bUseEnhancedNetCode = true;
+        NewNet_FlakFire(FireMode[Mode]).SavedVec.X = V.X;
+        NewNet_FlakFire(FireMode[Mode]).SavedVec.Y = V.Y;
+        NewNet_FlakFire(FireMode[Mode]).SavedVec.Z = V.Z;
+        NewNet_FlakFire(FireMode[Mode]).SavedRot.Yaw = R.Yaw;
+        NewNet_FlakFire(FireMode[Mode]).SavedRot.Pitch = R.Pitch;
+        NewNet_FlakFire(FireMode[Mode]).bUseReplicatedInfo=IsReasonable(NewNet_FlakFire(FireMode[Mode]).SavedVec);
     }
     else if(NewNet_FlakAltFire(FireMode[Mode])!=None)
     {
         NewNet_FlakAltFire(FireMode[Mode]).PingDT = FMin(M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT, MAX_PROJECTILE_FUDGE);
         NewNet_FlakAltFire(FireMode[Mode]).bUseEnhancedNetCode = true;
+        NewNet_FlakAltFire(FireMode[Mode]).SavedVec.X = V.X;
+        NewNet_FlakAltFire(FireMode[Mode]).SavedVec.Y = V.Y;
+        NewNet_FlakAltFire(FireMode[Mode]).SavedVec.Z = V.Z;
+        NewNet_FlakAltFire(FireMode[Mode]).SavedRot.Yaw = R.Yaw;
+        NewNet_FlakAltFire(FireMode[Mode]).SavedRot.Pitch = R.Pitch;
+        NewNet_FlakAltFire(FireMode[Mode]).bUseReplicatedInfo=IsReasonable(NewNet_FlakAltFire(FireMode[Mode]).SavedVec);
     }
 
     if ( (FireMode[Mode].NextFireTime <= Level.TimeSeconds + FireMode[Mode].PreFireTime)
@@ -162,25 +171,6 @@ function NewNet_ServerStartFire(byte Mode, byte ClientTimeStamp, float dt, Repli
     {
         FireMode[Mode].ServerStartFireTime = Level.TimeSeconds;
         FireMode[Mode].bServerDelayStartFire = false;
-
-        if(NewNet_FlakFire(FireMode[Mode])!=None)
-        {
-            NewNet_FlakFire(FireMode[Mode]).SavedVec.X = V.X;
-            NewNet_FlakFire(FireMode[Mode]).SavedVec.Y = V.Y;
-            NewNet_FlakFire(FireMode[Mode]).SavedVec.Z = V.Z;
-            NewNet_FlakFire(FireMode[Mode]).SavedRot.Yaw = R.Yaw;
-            NewNet_FlakFire(FireMode[Mode]).SavedRot.Pitch = R.Pitch;
-            NewNet_FlakFire(FireMode[Mode]).bUseReplicatedInfo=IsReasonable(NewNet_FlakFire(FireMode[Mode]).SavedVec);
-        }
-        else if(NewNet_FlakAltFire(FireMode[Mode])!=None)
-        {
-            NewNet_FlakAltFire(FireMode[Mode]).SavedVec.X = V.X;
-            NewNet_FlakAltFire(FireMode[Mode]).SavedVec.Y = V.Y;
-            NewNet_FlakAltFire(FireMode[Mode]).SavedVec.Z = V.Z;
-            NewNet_FlakAltFire(FireMode[Mode]).SavedRot.Yaw = R.Yaw;
-            NewNet_FlakAltFire(FireMode[Mode]).SavedRot.Pitch = R.Pitch;
-            NewNet_FlakAltFire(FireMode[Mode]).bUseReplicatedInfo=IsReasonable(NewNet_FlakAltFire(FireMode[Mode]).SavedVec);
-        }
     }
     else if ( FireMode[Mode].AllowFire() )
     {
@@ -236,7 +226,7 @@ simulated event PostNetBeginPlay()
     SendNewRandSeed();
 }
 
-function NewNet_OldServerStartFire(byte Mode, byte ClientTimeStamp, float dt)
+function NewNet_OldServerStartFire(byte Mode, byte ClientTimeStamp, float dt, ReplicatedRotator R, ReplicatedVector V)
 {
     if(M==None)
         foreach DynamicActors(class'MutUTComp', M)
@@ -246,11 +236,23 @@ function NewNet_OldServerStartFire(byte Mode, byte ClientTimeStamp, float dt)
     {
         NewNet_FlakFire(FireMode[Mode]).PingDT = FMin(M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT, MAX_PROJECTILE_FUDGE_ALT);
         NewNet_FlakFire(FireMode[Mode]).bUseEnhancedNetCode = true;
+        NewNet_FlakFire(FireMode[Mode]).SavedVec.X = V.X;
+        NewNet_FlakFire(FireMode[Mode]).SavedVec.Y = V.Y;
+        NewNet_FlakFire(FireMode[Mode]).SavedVec.Z = V.Z;
+        NewNet_FlakFire(FireMode[Mode]).SavedRot.Yaw = R.Yaw;
+        NewNet_FlakFire(FireMode[Mode]).SavedRot.Pitch = R.Pitch;
+        NewNet_FlakFire(FireMode[Mode]).bUseReplicatedInfo=IsReasonable(NewNet_FlakFire(FireMode[Mode]).SavedVec);
     }
     else if(NewNet_FlakAltFire(FireMode[Mode])!=None)
     {
         NewNet_FlakAltFire(FireMode[Mode]).PingDT = FMin(M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT, MAX_PROJECTILE_FUDGE);
         NewNet_FlakAltFire(FireMode[Mode]).bUseEnhancedNetCode = true;
+        NewNet_FlakAltFire(FireMode[Mode]).SavedVec.X = V.X;
+        NewNet_FlakAltFire(FireMode[Mode]).SavedVec.Y = V.Y;
+        NewNet_FlakAltFire(FireMode[Mode]).SavedVec.Z = V.Z;
+        NewNet_FlakAltFire(FireMode[Mode]).SavedRot.Yaw = R.Yaw;
+        NewNet_FlakAltFire(FireMode[Mode]).SavedRot.Pitch = R.Pitch;
+        NewNet_FlakAltFire(FireMode[Mode]).bUseReplicatedInfo=IsReasonable(NewNet_FlakAltFire(FireMode[Mode]).SavedVec);
     }
 
     ServerStartFire(mode);
