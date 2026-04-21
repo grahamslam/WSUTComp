@@ -4581,7 +4581,7 @@ function ServerMove
     optional int OldAccel
 )
 {
-    local float DeltaTime, clientErr, OldTimeStamp;
+    local float DeltaTime, clientErr, OldTimeStamp, errThresh;
     local rotator DeltaRot, Rot, ViewRot;
     local vector Accel, LocDiff;
     local int maxPitch, ViewPitch, ViewYaw;
@@ -4748,7 +4748,12 @@ function ServerMove
 
     // If client has accumulated a noticeable positional error, correct him.
     // After a damage impulse, allow a grace period for in-flight moves to catch up.
-    if ( ClientErr > 3 && (Level.TimeSeconds - LastDamageImpulseTime > DAMAGE_IMPULSE_GRACE) )
+    // Threshold is configurable via MutUTComp.ClientErrorThreshold (default 25
+    // squared UU = 5 UU VSize). Fallback to 25 if RepInfo missing/unset.
+    errThresh = 25.0;
+    if (RepInfo != None && RepInfo.ClientErrorThreshold > 0)
+        errThresh = RepInfo.ClientErrorThreshold;
+    if ( ClientErr > errThresh && (Level.TimeSeconds - LastDamageImpulseTime > DAMAGE_IMPULSE_GRACE) )
     {
         if ( Pawn == None )
         {

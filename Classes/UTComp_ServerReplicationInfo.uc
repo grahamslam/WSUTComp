@@ -57,6 +57,11 @@ var float CorrectionJumpThreshold;
 var float MaxVisualOffset;
 var bool  bSmoothCameraOffset;
 
+// NewNet ping cap (sec) — clamps PredictedPing used for rewind
+var float MaxPing;
+// ServerMove correction threshold (squared UU) — below this, no force-correct
+var float ClientErrorThreshold;
+
 var int NodeIsolateBonusPct;
 var int VehicleHealScore;
 var int VehicleDamagePoints;
@@ -115,7 +120,7 @@ replication
 		bDisableCameraShake,
         bWinByTwo,
         bEnableCorrectionSmoothing, CorrectionHalfLife, CorrectionJumpThreshold,
-        MaxVisualOffset, bSmoothCameraOffset;
+        MaxVisualOffset, bSmoothCameraOffset, MaxPing, ClientErrorThreshold;
 }
 
 defaultproperties
@@ -147,10 +152,12 @@ defaultproperties
      NetUpdateFrequency=10.000000
      bWinByTwo=false
      bEnableCorrectionSmoothing=true
-     CorrectionHalfLife=0.050
-     CorrectionJumpThreshold=30.0
+     CorrectionHalfLife=0.020
+     CorrectionJumpThreshold=60.0
      MaxVisualOffset=400.0
      bSmoothCameraOffset=true
+     MaxPing=0.150
+     ClientErrorThreshold=25.0
 
      NodeIsolateBonusPct=20
      VehicleHealScore=500

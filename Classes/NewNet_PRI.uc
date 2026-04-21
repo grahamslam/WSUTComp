@@ -28,8 +28,8 @@ var float PingTweenTime;
 
 // Sliding window ping measurement
 const PING_WINDOW_SIZE = 5;
-const MAX_PING = 0.150;           // 150ms cap
 const SPIKE_REJECT_MULT = 2.5;    // reject samples > 2.5x current median
+var float MaxPing;                 // configurable cap (seconds), pulled from RepInfo
 var float PingWindow[5];           // circular buffer of recent RTT samples
 var int PingWindowIdx;             // next write position
 var int PingWindowCount;           // how many valid samples we have (0..5)
@@ -63,6 +63,11 @@ simulated function PostBeginPlay()
         {
             PingTweenTime=RepInfo.PingTweenTime;
         }
+
+        if(RepInfo.MaxPing > 0)
+        {
+            MaxPing=RepInfo.MaxPing;
+        }
     }
 
     // Initialize window to zero
@@ -85,9 +90,9 @@ simulated function Pong()
     bPingReceived = true;
     RawPing = Level.TimeSeconds - PingSendTime;
 
-    // Cap at max ping
-    if(RawPing > MAX_PING)
-        RawPing = MAX_PING;
+    // Cap at max ping (configurable via MutUTComp.MaxPing, default 0.150)
+    if(RawPing > MaxPing)
+        RawPing = MaxPing;
 
     // Spike rejection: if we have enough samples, reject wild outliers
     if(PingWindowCount >= 3)
@@ -183,4 +188,5 @@ defaultproperties
      NetUpdateFrequency=200.000000
      NetPriority=5.000000
      PingTweenTime=0.5
+     MaxPing=0.150
 }
