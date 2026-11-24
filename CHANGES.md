@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-28
 **Starting point:** WSUTComp V21 (UTCompOmni 1.71 fork)
-**Current:** V24
+**Current:** V25
 
 ---
 
@@ -97,6 +97,28 @@
 **Problem:** Fire rocket → switch weapon → switch back → fire again. The `bFakeFirePending` flag was still true with stale aim/position data from the first shot. Spawned a ghost fake projectile from the old position.
 
 **Fix:** Clear `bFakeFirePending` instead of calling `DoTimedClientFireEffect()` with stale data.
+
+---
+
+### V25 — Review Fixes (2026-11-23)
+
+#### 14. Move Coalescing Timing (`BS_xPlayer.uc` ReplicateMove)
+**Problem:** The server never sees a SavedMove's `Delta`; it times each move from the gap between `TimeStamp`s. The coalesce path extended `PendingMove.Delta` but left its `TimeStamp` at the first frame, so the server ran the pending move for one frame's worth of time with the LAST frame's acceleration and folded the merged frames into the next move. Correction replay (which uses `Delta`) split the time differently again. The `NewAccel == 0 || PendingMove.Acceleration == 0` clauses also merged strafe start/stop frames, and `bRun` wasn't compared.
+
+**Fix:** The timestamp moves to the end of the merged span. The client re-simulates the span from the move's start as one step with the latest acceleration (what the stock move-combine does), so prediction matches the server exactly. Start/stop (exactly one acceleration zero), walk toggles and spans past MaxResponseTime get a fresh move. `PostUpdate` keeps the saved end state current.
+
+#### 15. Per-Player Rewind Cap (`MutUTComp.RewindFor`, `NewNet_PRI.uc`, 10 weapons)
+**Problem:** Hitscan rewind comes from the stamp the client echoes (`ClientTimeStamp - GetStamp(stamp) - DT + 0.5*AverDT`), capped only by `PawnCollisionMaxRewind` (240 ms). `MaxPing` only capped the client's own estimate (fake projectiles), so the V24 note that it "naturally limits abuse" didn't hold: a modified client could pick any rewind up to 240 ms per shot. `ExactPing` can't bound it either; the client reports it (`ServerUpdatePing`).
+
+**Fix:** `NewNet_PRI` measures each player's round trip on the server (unreliable ping to the owning client every 0.5 s, resent if lost, median of 5). All 19 rewind calculations go through `MutUTComp.RewindFor`, which caps the rewind at that round trip and at `MaxPing`, each plus `0.025 + 2*AverDT`. A client can only raise the server's number by really answering late. Before 3 round trips are in, `MaxPing` alone applies. `PawnCollisionMaxRewind` stays the absolute ceiling, and the unreg search still runs on top.
+
+#### 16. Ping Spike Rejection Removed (`NewNet_PRI.uc`)
+**Problem:** Samples above 2.5x the median were replaced with the median and written into the window, so a real rise in ping (30 ms -> 90 ms) never got in: the estimate stayed low until reconnect and fake projectiles were mistimed.
+
+**Fix:** Removed. The median of 5 already ignores one or two spikes.
+
+#### Note: damage impulse sync is off
+`ModernPawn.TakeDamage` only calls `super` (disabled 2026-03-31 for baseline testing), `ClientDamageImpulse` is never called and `LastDamageImpulseTime` is never set, so items 2, 3 and 12 above are not active. If it is turned back on: it sets an absolute velocity over a reliable RPC, so a late or resent one would restore a stale velocity. Send a timestamped velocity change instead.
 
 ---
 

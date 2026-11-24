@@ -157,7 +157,7 @@ function NewNet_ServerStartFire(byte Mode, byte ClientTimeStamp, float DT, Repli
         foreach DynamicActors(class'MutUTComp', M)
 	        break;
 
-    NewNet_SniperFire(FireMode[Mode]).PingDT = M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT;
+    NewNet_SniperFire(FireMode[Mode]).PingDT = M.RewindFor(Pawn(Owner), ClientTimeStamp, DT);
     NewNet_SniperFire(FireMode[Mode]).AverDT = M.AverDT;
     //Log("Firing with"@M.ClientTimeStamp@M.GetStamp(ClientTimeStamp)@DT);
    // Log(PlayerController(Pawn(Owner).Controller).ExactPing);

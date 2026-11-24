@@ -62,12 +62,12 @@ function NewNet_ServerStartFire(byte Mode, byte ClientTimeStamp, float DT)
 
     if(NewNet_AssaultFire(FireMode[Mode])!=None)
     {
-        NewNet_AssaultFire(FireMode[Mode]).PingDT = M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT;
+        NewNet_AssaultFire(FireMode[Mode]).PingDT = M.RewindFor(Pawn(Owner), ClientTimeStamp, DT);
         NewNet_AssaultFire(FireMode[Mode]).bUseEnhancedNetCode = true;
     }
     else if(NewNet_AssaultGrenade(FireMode[Mode])!=None)
     {
-        NewNet_AssaultGrenade(FireMode[Mode]).PingDT = FMin(M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT, MAX_PROJECTILE_FUDGE);
+        NewNet_AssaultGrenade(FireMode[Mode]).PingDT = FMin(M.RewindFor(Pawn(Owner), ClientTimeStamp, DT), MAX_PROJECTILE_FUDGE);
         NewNet_AssaultGrenade(FireMode[Mode]).bUseEnhancedNetCode = true;
     }
 

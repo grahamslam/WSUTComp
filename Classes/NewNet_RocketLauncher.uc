@@ -162,7 +162,7 @@ function NewNet_ServerStartFire(byte Mode, byte ClientTimeStamp, float dt, Repli
 		return;
 	}
 
-    PingDT = FMin(M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT, MAX_PROJECTILE_FUDGE);
+    PingDT = FMin(M.RewindFor(Pawn(Owner), ClientTimeStamp, DT), MAX_PROJECTILE_FUDGE);
     bUseEnhancedNetCode=true;
     if(NewNet_RocketFire(FireMode[Mode])!=None)
     {

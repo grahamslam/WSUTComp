@@ -5,6 +5,11 @@ Wicked Sick UTComp, based on [UTCompOmni 1.71](https://github.com/zenakuten/UTCo
 
 Release Notes
 
+V25
+- Move coalescing: a merged move now ends at the right time (its timestamp moves with it), the client predicts the merged span exactly as the server simulates it, and strafe start/stop and walk toggles get their own move. Fixes small snaps on strafe changes with bCoalesceMoves on.
+- Hitscan rewind is capped per player at the round trip the server measures for them (and at MaxPing), so a client can't claim extra rewind by echoing an old stamp
+- Ping estimator: drop the spike rejection that kept a real rise in ping out of the estimate for good (the median of 5 already ignores spikes)
+
 V23
 - Fix Y/Z axis assignment bug in delayed fake projectiles (rockets, flak, bio, link alt) — all three axes were set to X, breaking projectile spawn orientation on higher ping
 - Fix None dereference crash in CheckForFakeProj when FakeProjectileManager not found (rocket, link, shock, seeking rocket, flak chunk projectiles)

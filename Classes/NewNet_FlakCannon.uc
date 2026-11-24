@@ -145,7 +145,7 @@ function NewNet_ServerStartFire(byte Mode, byte ClientTimeStamp, float dt, Repli
 
     if(NewNet_FlakFire(FireMode[Mode])!=None)
     {
-        NewNet_FlakFire(FireMode[Mode]).PingDT = FMin(M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT, MAX_PROJECTILE_FUDGE_ALT);
+        NewNet_FlakFire(FireMode[Mode]).PingDT = FMin(M.RewindFor(Pawn(Owner), ClientTimeStamp, DT), MAX_PROJECTILE_FUDGE_ALT);
         NewNet_FlakFire(FireMode[Mode]).bUseEnhancedNetCode = true;
         NewNet_FlakFire(FireMode[Mode]).SavedVec.X = V.X;
         NewNet_FlakFire(FireMode[Mode]).SavedVec.Y = V.Y;
@@ -156,7 +156,7 @@ function NewNet_ServerStartFire(byte Mode, byte ClientTimeStamp, float dt, Repli
     }
     else if(NewNet_FlakAltFire(FireMode[Mode])!=None)
     {
-        NewNet_FlakAltFire(FireMode[Mode]).PingDT = FMin(M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT, MAX_PROJECTILE_FUDGE);
+        NewNet_FlakAltFire(FireMode[Mode]).PingDT = FMin(M.RewindFor(Pawn(Owner), ClientTimeStamp, DT), MAX_PROJECTILE_FUDGE);
         NewNet_FlakAltFire(FireMode[Mode]).bUseEnhancedNetCode = true;
         NewNet_FlakAltFire(FireMode[Mode]).SavedVec.X = V.X;
         NewNet_FlakAltFire(FireMode[Mode]).SavedVec.Y = V.Y;
@@ -234,7 +234,7 @@ function NewNet_OldServerStartFire(byte Mode, byte ClientTimeStamp, float dt, Re
 
     if(NewNet_FlakFire(FireMode[Mode])!=None)
     {
-        NewNet_FlakFire(FireMode[Mode]).PingDT = FMin(M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT, MAX_PROJECTILE_FUDGE_ALT);
+        NewNet_FlakFire(FireMode[Mode]).PingDT = FMin(M.RewindFor(Pawn(Owner), ClientTimeStamp, DT), MAX_PROJECTILE_FUDGE_ALT);
         NewNet_FlakFire(FireMode[Mode]).bUseEnhancedNetCode = true;
         NewNet_FlakFire(FireMode[Mode]).SavedVec.X = V.X;
         NewNet_FlakFire(FireMode[Mode]).SavedVec.Y = V.Y;
@@ -245,7 +245,7 @@ function NewNet_OldServerStartFire(byte Mode, byte ClientTimeStamp, float dt, Re
     }
     else if(NewNet_FlakAltFire(FireMode[Mode])!=None)
     {
-        NewNet_FlakAltFire(FireMode[Mode]).PingDT = FMin(M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT, MAX_PROJECTILE_FUDGE);
+        NewNet_FlakAltFire(FireMode[Mode]).PingDT = FMin(M.RewindFor(Pawn(Owner), ClientTimeStamp, DT), MAX_PROJECTILE_FUDGE);
         NewNet_FlakAltFire(FireMode[Mode]).bUseEnhancedNetCode = true;
         NewNet_FlakAltFire(FireMode[Mode]).SavedVec.X = V.X;
         NewNet_FlakAltFire(FireMode[Mode]).SavedVec.Y = V.Y;

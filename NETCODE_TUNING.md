@@ -84,7 +84,7 @@ If you genuinely need to tune:
 | `PingTweenTime` | 0.5 | How often the client sends a Ping RPC to the server (seconds). Lower = more responsive ping tracking, more bandwidth. 0.5 s gives ~2.5 s window convergence with the 5-sample median filter. |
 | `PawnCollisionHistoryLength` | 0.35 | How long each `PawnCollisionCopy` retains position history (seconds). Must be ≥ max expected rewind. |
 | `PawnCollisionMaxRewind` | 0.240 | Hard cap on how far back `TimeTravelPawn` will interpolate. Clamps rewind even if `PingDT` is higher. |
-| `MaxPing` | 0.150 | **(WSUTComp fork)** Cap applied to measured ping (seconds) before it feeds rewind calculations. Players with real ping above this get clamped — their shots under-rewind by the excess, they need to lead. |
+| `MaxPing` | 0.150 | **(WSUTComp fork)** Most rewind a shot gets (seconds, plus a ~25 ms + 2 ticks margin). Each shot is also capped at the round trip the **server** measures for that player, so a client can't claim more lag than it has. Players with real ping above this get clamped — their shots under-rewind by the excess, they need to lead. Also caps the client's own ping estimate for fake projectile timing. `PawnCollisionMaxRewind` stays the absolute ceiling. |
 
 ### Correction smoothing (visual, ModernPawn)
 

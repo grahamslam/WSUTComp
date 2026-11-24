@@ -69,7 +69,7 @@ function NewNet_ServerStartFire(byte Mode, byte ClientTimeStamp, float dt)
 
     if(NewNet_ClassicSniperFire(FireMode[Mode])!=None)
     {
-        NewNet_ClassicSniperFire(FireMode[Mode]).PingDT = M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT;
+        NewNet_ClassicSniperFire(FireMode[Mode]).PingDT = M.RewindFor(Pawn(Owner), ClientTimeStamp, DT);
         NewNet_ClassicSniperFire(FireMode[Mode]).bUseEnhancedNetCode = true;
     }
 

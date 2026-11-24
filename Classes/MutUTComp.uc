@@ -874,6 +874,40 @@ simulated function float GetStamp(int stamp)
    return StampArray[stamp%256];
 }
 
+// Server: how far back a shot rewinds the other players. The amount comes from
+// the stamp the shooter's client echoes back (a full round trip), which a
+// modified client can choose; it is capped at the round trip the SERVER measured
+// for that player (NewNet_PRI.ServerRTT) and at MaxPing, each plus a margin for
+// tick quantization. Above MaxPing, shots under-rewind by the excess and need
+// leading, as the settings describe. PawnCollisionCopy still applies
+// PawnCollisionMaxRewind as the absolute ceiling.
+const REWIND_SLACK = 0.025;
+function float RewindFor(Pawn Shooter, int Stamp, float DT)
+{
+    local float Rewind, Limit, Slack;
+    local LinkedReplicationInfo L;
+    local NewNet_PRI NPRI;
+
+    Rewind = ClientTimeStamp - GetStamp(Stamp) - DT + 0.5*AverDT;
+    Slack = REWIND_SLACK + 2.0*AverDT;
+    Limit = Rewind;
+    if(MaxPing > 0)
+        Limit = FMin(Limit, MaxPing + Slack);
+    if(Shooter != None && Shooter.PlayerReplicationInfo != None)
+    {
+        for(L = Shooter.PlayerReplicationInfo.CustomReplicationInfo; L != None; L = L.NextReplicationInfo)
+        {
+            NPRI = NewNet_PRI(L);
+            if(NPRI != None)
+                break;
+        }
+    }
+    // Until 3 round trips are in (the first ~1.5s on the server), MaxPing alone.
+    if(NPRI != None && NPRI.SrvRTTCount >= 3)
+        Limit = FMin(Limit, NPRI.ServerRTT + Slack);
+    return Limit;
+}
+
 function ReplacePawnAndPC()
 {
     if(Level.Game.DefaultPlayerClassName~="xGame.xPawn")

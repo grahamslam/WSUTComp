@@ -33,12 +33,32 @@ var float PingWindow[5];           // circular buffer of recent RTT samples
 var int PingWindowIdx;             // next write position
 var int PingWindowCount;           // how many valid samples we have (0..5)
 
+// Server-measured round trip (server -> owning client -> server), the trusted
+// bound on how far back a shot from this player may rewind (MutUTComp.RewindFor).
+// The rewind itself comes from the stamp the client echoes, which a modified
+// client can pick; a client can only RAISE this number by really answering late.
+const SRV_PING_PERIOD = 0.5;       // seconds between server pings
+const SRV_PING_TIMEOUT = 1.0;      // no answer by then: send a new one
+var float SrvPingSentTime;
+var byte SrvPingSeq;
+var bool bSrvPingOut;
+var float SrvRTTWindow[5];
+var int SrvRTTIdx;
+var int SrvRTTCount;
+var float ServerRTT;               // median of the last 5 (server only)
+
 replication
 {
     reliable if(Role<Role_Authority)
         Ping;
     reliable if(Role == Role_Authority && bNetOwner)
         Pong;
+    // Unreliable on purpose: a lost one is just resent, and a reliable one
+    // would wait behind retransmits and measure the backlog, not the link.
+    unreliable if(Role == Role_Authority && bNetOwner)
+        ClientSrvPing;
+    unreliable if(Role < Role_Authority)
+        ServerSrvPong;
 }
 
 simulated function PostBeginPlay()
@@ -109,25 +129,24 @@ simulated function Pong()
     default.PredictedPing = PredictedPing;
 }
 
-// Sort-free median of up to 5 samples using pairwise comparisons
 simulated function float GetMedianPing()
 {
-    local float A, B, C, D, E, Tmp;
+    return Median5(PingWindow[0], PingWindow[1], PingWindow[2], PingWindow[3], PingWindow[4], PingWindowCount);
+}
 
-    if(PingWindowCount <= 0)
+// Sort-free median of the first Count (up to 5) values using pairwise comparisons
+simulated function float Median5(float A, float B, float C, float D, float E, int Count)
+{
+    local float Tmp;
+
+    if(Count <= 0)
         return 0.0;
-    if(PingWindowCount == 1)
-        return PingWindow[0];
-    if(PingWindowCount == 2)
-        return (PingWindow[0] + PingWindow[1]) * 0.5;
+    if(Count == 1)
+        return A;
+    if(Count == 2)
+        return (A + B) * 0.5;
 
-    // For 3+ samples, do a partial sort to find the median
-    // Copy valid samples into locals
-    A = PingWindow[0];
-    B = PingWindow[1];
-    C = PingWindow[2];
-
-    if(PingWindowCount == 3)
+    if(Count == 3)
     {
         // Median of 3: sort and return middle
         if(A > B) { Tmp = A; A = B; B = Tmp; }
@@ -136,9 +155,7 @@ simulated function float GetMedianPing()
         return B;
     }
 
-    D = PingWindow[3];
-
-    if(PingWindowCount == 4)
+    if(Count == 4)
     {
         // Median of 4: average of 2nd and 3rd
         if(A > B) { Tmp = A; A = B; B = Tmp; }
@@ -150,7 +167,6 @@ simulated function float GetMedianPing()
     }
 
     // Median of 5
-    E = PingWindow[4];
     // Sorting network for 5 elements — find the 3rd smallest
     if(A > B) { Tmp = A; A = B; B = Tmp; }
     if(C > D) { Tmp = C; C = D; D = Tmp; }
@@ -163,11 +179,42 @@ simulated function float GetMedianPing()
     return C;
 }
 
+// Client: answer the server's ping straight away.
+simulated function ClientSrvPing(byte Seq)
+{
+    ServerSrvPong(Seq);
+}
+
+// Server: one round trip measured.
+function ServerSrvPong(byte Seq)
+{
+    if(!bSrvPingOut || Seq != SrvPingSeq)
+        return;   // an old or duplicate answer
+    bSrvPingOut = false;
+    SrvRTTWindow[SrvRTTIdx] = Level.TimeSeconds - SrvPingSentTime;
+    SrvRTTIdx = (SrvRTTIdx + 1) % PING_WINDOW_SIZE;
+    if(SrvRTTCount < PING_WINDOW_SIZE)
+        SrvRTTCount++;
+    ServerRTT = Median5(SrvRTTWindow[0], SrvRTTWindow[1], SrvRTTWindow[2], SrvRTTWindow[3], SrvRTTWindow[4], SrvRTTCount);
+}
+
 simulated function Tick(float deltatime)
 {
     super.Tick(deltatime);
-    if(Level.NetMode!=NM_Client)
+    if(Level.NetMode != NM_Client)
+    {
+        // Server: ping the owning client twice a second (a lost one is resent).
+        if(Level.NetMode != NM_Standalone && PlayerController(Owner) != None
+            && ((!bSrvPingOut && Level.TimeSeconds > SrvPingSentTime + SRV_PING_PERIOD)
+                || (bSrvPingOut && Level.TimeSeconds > SrvPingSentTime + SRV_PING_TIMEOUT)))
+        {
+            SrvPingSeq++;
+            SrvPingSentTime = Level.TimeSeconds;
+            bSrvPingOut = true;
+            ClientSrvPing(SrvPingSeq);
+        }
         return;
+    }
     if(bPingReceived && Level.TimeSeconds > PingSendTime + PingTweenTime)
     {
         PingSendTime = Level.TimeSeconds;

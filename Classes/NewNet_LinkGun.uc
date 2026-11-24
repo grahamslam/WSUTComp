@@ -66,12 +66,12 @@ function NewNet_ServerStartFire(byte Mode, byte ClientTimeStamp, float DT)
 
     if(NewNet_LinkAltFire(FireMode[Mode])!=None)
     {
-        NewNet_LinkAltFire(FireMode[Mode]).PingDT = FMin(M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT, MAX_PROJECTILE_FUDGE);
+        NewNet_LinkAltFire(FireMode[Mode]).PingDT = FMin(M.RewindFor(Pawn(Owner), ClientTimeStamp, DT), MAX_PROJECTILE_FUDGE);
         NewNet_LinkAltFire(FireMode[Mode]).bUseEnhancedNetCode = true;
     }
     else if(NewNet_LinkFire(FireMode[Mode])!=None)
     {
-        NewNet_LinkFire(FireMode[Mode]).PingDT = M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT;
+        NewNet_LinkFire(FireMode[Mode]).PingDT = M.RewindFor(Pawn(Owner), ClientTimeStamp, DT);
         NewNet_LinkFire(FireMode[Mode]).bUseEnhancedNetCode = true;
     }
 

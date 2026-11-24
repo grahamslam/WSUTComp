@@ -190,7 +190,7 @@ function NewNet_ServerStartFire(byte Mode, byte ClientTimeStamp, float DT, Repli
         foreach DynamicActors(class'MutUTComp', M)
             break;
 
-    NewNet_SuperShockBeamFire(FireMode[Mode]).PingDT = M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT;
+    NewNet_SuperShockBeamFire(FireMode[Mode]).PingDT = M.RewindFor(Pawn(Owner), ClientTimeStamp, DT);
     NewNet_SuperShockBeamFire(FireMode[Mode]).bUseEnhancedNetCode = true;
     NewNet_SuperShockBeamFire(FireMode[Mode]).AverDT = M.AverDT;
 
@@ -230,7 +230,7 @@ function NewNet_OldServerStartFire(byte Mode, byte ClientTimeStamp, float dt, Re
     if(M==None)
         foreach DynamicActors(class'MutUTComp', M)
             break;
-    NewNet_SuperShockBeamFire(FireMode[Mode]).PingDT = M.ClientTimeStamp - M.GetStamp(ClientTimeStamp)-DT + 0.5*M.AverDT;
+    NewNet_SuperShockBeamFire(FireMode[Mode]).PingDT = M.RewindFor(Pawn(Owner), ClientTimeStamp, DT);
     NewNet_SuperShockBeamFire(FireMode[Mode]).bUseEnhancedNetCode = true;
     NewNet_SuperShockBeamFire(FireMode[Mode]).SavedVec.X = V.X;
     NewNet_SuperShockBeamFire(FireMode[Mode]).SavedVec.Y = V.Y;
