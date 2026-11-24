@@ -28,7 +28,6 @@ var float PingTweenTime;
 
 // Sliding window ping measurement
 const PING_WINDOW_SIZE = 5;
-const SPIKE_REJECT_MULT = 2.5;    // reject samples > 2.5x current median
 var float MaxPing;                 // configurable cap (seconds), pulled from RepInfo
 var float PingWindow[5];           // circular buffer of recent RTT samples
 var int PingWindowIdx;             // next write position
@@ -85,7 +84,6 @@ simulated function Ping()
 simulated function Pong()
 {
     local float RawPing;
-    local float CurrentMedian;
 
     bPingReceived = true;
     RawPing = Level.TimeSeconds - PingSendTime;
@@ -94,13 +92,9 @@ simulated function Pong()
     if(RawPing > MaxPing)
         RawPing = MaxPing;
 
-    // Spike rejection: if we have enough samples, reject wild outliers
-    if(PingWindowCount >= 3)
-    {
-        CurrentMedian = GetMedianPing();
-        if(CurrentMedian > 0.005 && RawPing > CurrentMedian * SPIKE_REJECT_MULT)
-            RawPing = CurrentMedian;  // clamp spike to current median
-    }
+    // No separate spike rejection: the median of 5 already ignores one or two
+    // outliers, and replacing high samples with the median kept a real rise in
+    // ping (say 30ms -> 90ms) out of the window for good.
 
     // Write into circular buffer
     PingWindow[PingWindowIdx] = RawPing;
