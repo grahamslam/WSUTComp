@@ -4087,21 +4087,38 @@ function ReplicateMove
         && PendingMove.DoubleClickMove == DCLICK_None
         && DoubleClickMove == DCLICK_None
         && Level.TimeDilation >= 0.9
-        && (NewAccel == vect(0,0,0)
-            || PendingMove.Acceleration == vect(0,0,0)
-            || (Normal(NewAccel) Dot Normal(PendingMove.Acceleration)) > 0.97))
+        && PendingMove.bRun == (bRun != 0)        // walk toggle: fresh move
+        && PendingMove.Delta + DeltaTime < MaxResponseTime
+        // Starting or stopping (one of the two accelerations zero) gets a fresh
+        // move: merging it would apply the key press/release to the whole span.
+        && ((NewAccel == vect(0,0,0) && PendingMove.Acceleration == vect(0,0,0))
+            || (NewAccel != vect(0,0,0) && PendingMove.Acceleration != vect(0,0,0)
+                && (Normal(NewAccel) Dot Normal(PendingMove.Acceleration)) > 0.97)))
     {
         // Extend the pending move instead of allocating a new SavedMove.
-        // The PendingMove now represents (original Delta + this frame's Delta)
-        // worth of input with the latest Acceleration.
-        PendingMove.Delta = FMin(PendingMove.Delta + DeltaTime, MaxResponseTime);
+        // The server never sees Delta: it times each move from the gap between
+        // TimeStamps, so the timestamp must move to the end of the merged span.
+        PendingMove.Delta += DeltaTime;
         PendingMove.Acceleration = NewAccel;
+        PendingMove.TimeStamp = Level.TimeSeconds;
 
-        // Local prediction still runs every frame so the player sees smooth motion
         bDoubleJump = false;
         ProcessMove(DeltaTime, NewAccel, DCLICK_None, DeltaRot);
         if (Pawn != None)
-            Pawn.AutonomousPhysics(DeltaTime);
+        {
+            // Predict exactly what the server will simulate: the whole span as
+            // one step with the latest acceleration, from the move's start
+            // (as the stock move-combine below does). Per-frame stepping here
+            // made client prediction and correction replay disagree with the
+            // server, which showed up as small snaps on strafe changes.
+            Pawn.SetLocation(PendingMove.GetStartLocation());
+            Pawn.Velocity = PendingMove.StartVelocity;
+            if (PendingMove.StartBase != Pawn.Base)
+                Pawn.SetBase(PendingMove.StartBase);
+            Pawn.Floor = PendingMove.StartFloor;
+            Pawn.AutonomousPhysics(PendingMove.Delta);
+        }
+        PendingMove.PostUpdate(self);
 
         return;
     }
